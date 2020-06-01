@@ -180,7 +180,7 @@ defmodule Pundit do
   """
   @spec can?(thing :: struct() | module(), user :: term(), action :: atom()) :: boolean()
   def can?(thing, user, action) do
-    module = thing |> get_module() |> Module.concat(Policy)
+    module = thing |> get_module() |> policy_module()
 
     with {:module, _module} <- Code.ensure_compiled(module),
          true <- Kernel.function_exported?(module, action, 2) do
@@ -214,13 +214,13 @@ defmodule Pundit do
   @spec scope(schema :: module() | Ecto.Query.t(), user :: term()) :: Ecto.Query.t()
   def scope(%{__struct__: Ecto.Query, from: %{source: {_, schema}}} = query, user) do
     schema
-    |> Module.concat(Policy)
+    |> policy_module()
     |> do_scope(query, user)
   end
 
   def scope(schema, user) when is_atom(schema) do
     schema
-    |> Module.concat(Policy)
+    |> policy_module()
     |> do_scope(schema, user)
   end
 
@@ -242,6 +242,14 @@ defmodule Pundit do
 
       true ->
         raise ArgumentError, message: "The first parameter should be a module or a struct"
+    end
+  end
+
+  def policy_module(module) do
+    if Kernel.function_exported?(module, :pundit_policy_module, 0) do
+      module.pundit_policy_module()
+    else
+      Module.concat(module, Policy)
     end
   end
 end
